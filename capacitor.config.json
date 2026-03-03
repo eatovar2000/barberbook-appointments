@@ -1,0 +1,9 @@
+{
+  "appId": "app.lovable.57cb67e74e844344970ff10cf0236c37",
+  "appName": "The King's Cut",
+  "webDir": "dist",
+  "server": {
+    "url": "https://57cb67e7-4e84-4344-970f-f10cf0236c37.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  }
+}
