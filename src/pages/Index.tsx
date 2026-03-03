@@ -5,12 +5,17 @@ import { BarberSelector } from "@/components/BarberSelector";
 import { DateTimeSelector } from "@/components/DateTimeSelector";
 import { BookingConfirmation } from "@/components/BookingConfirmation";
 import { BookingSuccess } from "@/components/BookingSuccess";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { MyAppointments } from "@/components/MyAppointments";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ArrowLeft, ArrowRight, LogOut, CalendarDays } from "lucide-react";
 import barberHero from "@/assets/barber-hero.jpg";
 
-type Step = "home" | "service" | "barber" | "datetime" | "confirm" | "success";
+type Step = "home" | "service" | "barber" | "datetime" | "confirm" | "success" | "appointments";
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [step, setStep] = useState<Step>("home");
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
@@ -46,16 +51,54 @@ const Index = () => {
     if (idx > 0) setStep(flow[idx - 1]);
   };
 
+  const handleConfirmBooking = async () => {
+    if (!user || !selectedService || !selectedBarber || !selectedDate || !selectedTime) return;
+
+    const { error } = await supabase.from("appointments").insert({
+      user_id: user.id,
+      service_id: selectedService,
+      barber_id: selectedBarber,
+      appointment_date: selectedDate.toISOString().split("T")[0],
+      appointment_time: selectedTime + ":00",
+      status: "confirmed",
+    });
+
+    if (error) {
+      toast.error("Error al crear la cita: " + error.message);
+      return;
+    }
+
+    setStep("success");
+  };
+
   if (step === "home") {
     return (
       <div className="min-h-screen flex flex-col relative overflow-hidden">
-        {/* Hero image */}
         <div className="absolute inset-0">
           <img src={barberHero} alt="Barbería premium" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/30" />
         </div>
 
-        {/* Content */}
+        {/* User menu */}
+        {user && (
+          <div className="relative z-10 flex items-center justify-between p-4">
+            <button
+              onClick={() => setStep("appointments")}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg glass-dark text-foreground text-sm"
+            >
+              <CalendarDays className="w-4 h-4 text-primary" />
+              Mis citas
+            </button>
+            <button
+              onClick={signOut}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg glass-dark text-foreground text-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              Salir
+            </button>
+          </div>
+        )}
+
         <div className="relative flex-1 flex flex-col justify-end p-6 pb-12 max-w-lg mx-auto w-full">
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="space-y-1">
@@ -90,11 +133,14 @@ const Index = () => {
     );
   }
 
+  if (step === "appointments") {
+    return <MyAppointments onBack={() => setStep("home")} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col max-w-lg mx-auto">
-      {/* Header */}
       <div className="flex items-center gap-3 p-4 glass-dark sticky top-0 z-10 border-b border-border">
-        <button onClick={prevStep} className="p-2 rounded-lg hover:bg-secondary transition-colors">
+        <button onClick={step === "service" ? reset : prevStep} className="p-2 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
         <div className="flex-1">
@@ -106,7 +152,6 @@ const Index = () => {
             {step === "confirm" && "Paso 4 de 4"}
           </p>
         </div>
-        {/* Progress dots */}
         <div className="flex gap-1.5">
           {["service", "barber", "datetime", "confirm"].map((s, i) => (
             <div
@@ -121,7 +166,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Step content */}
       <div className="flex-1 p-5 animate-in fade-in slide-in-from-right-4 duration-300">
         {step === "service" && (
           <ServiceSelector selected={selectedService} onSelect={setSelectedService} />
@@ -143,13 +187,12 @@ const Index = () => {
             barberId={selectedBarber}
             date={selectedDate}
             time={selectedTime}
-            onConfirm={() => setStep("success")}
+            onConfirm={handleConfirmBooking}
             onBack={prevStep}
           />
         )}
       </div>
 
-      {/* Bottom action */}
       {step !== "confirm" && (
         <div className="p-5 glass-dark border-t border-border">
           <Button
